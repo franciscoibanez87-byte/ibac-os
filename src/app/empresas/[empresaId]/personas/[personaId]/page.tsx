@@ -2,7 +2,15 @@ import { notFound } from "next/navigation";
 import { obtenerAsignacionesVigentesDePersona } from "@/cores/core-1-estructura/queries";
 import { listarPersonas, obtenerPersona } from "@/cores/core-3-personas/queries";
 import { obtenerContratoVigente, obtenerHistorialSalarial } from "@/cores/core-4-contratos/queries";
-import { RegistrarContratoForm } from "./forms";
+import { obtenerEvidenciaAsistenciaPersona } from "@/cores/core-8-cumplimiento/queries";
+import { obtenerHistorialMovimientos } from "@/transversal/eventos/queries";
+import { obtenerDocumentosDeEntidad } from "@/transversal/documentos/queries";
+import {
+  RegistrarContratoForm,
+  RegistrarEvidenciaForm,
+  RegistrarMovimientoForm,
+  SubirDocumentoPersonaForm,
+} from "./forms";
 
 export default async function PersonaDetallePage({
   params,
@@ -12,11 +20,14 @@ export default async function PersonaDetallePage({
   const persona = await obtenerPersona(personaId);
   if (!persona) notFound();
 
-  const [asignaciones, contratoVigente, historial, personas] = await Promise.all([
+  const [asignaciones, contratoVigente, historial, personas, evidencias, movimientos, documentos] = await Promise.all([
     obtenerAsignacionesVigentesDePersona(personaId),
     obtenerContratoVigente(personaId),
     obtenerHistorialSalarial(personaId),
     listarPersonas(empresaId),
+    obtenerEvidenciaAsistenciaPersona(personaId),
+    obtenerHistorialMovimientos(personaId),
+    obtenerDocumentosDeEntidad("persona", personaId),
   ]);
 
   return (
@@ -73,6 +84,59 @@ export default async function PersonaDetallePage({
         )}
 
         <RegistrarContratoForm empresaId={empresaId} personaId={personaId} personas={personas} />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="font-medium">Historial de movimientos (EventoMovimiento)</h2>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          Hecho único que se registra una sola vez; CORE 1, 3 y 4 lo consumen por referencia.
+        </p>
+        {movimientos.length === 0 ? (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">Sin movimientos registrados.</p>
+        ) : (
+          <ul className="flex flex-col gap-1 text-sm">
+            {movimientos.map((m) => (
+              <li key={m.id}>
+                {m.fecha_efectiva} — {m.tipo}
+                {m.motivo ? ` — ${m.motivo}` : ""}
+              </li>
+            ))}
+          </ul>
+        )}
+        <RegistrarMovimientoForm empresaId={empresaId} personaId={personaId} />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="font-medium">Evidencia de asistencia (CORE 8)</h2>
+        {evidencias.length === 0 ? (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">Sin evidencia registrada.</p>
+        ) : (
+          <ul className="flex flex-col gap-1 text-sm">
+            {evidencias.map((e) => (
+              <li key={e.id}>
+                {e.fecha} — {e.tipo_evento}
+                {e.justificacion ? ` — ${e.justificacion}` : ""}
+              </li>
+            ))}
+          </ul>
+        )}
+        <RegistrarEvidenciaForm empresaId={empresaId} personaId={personaId} />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="font-medium">Documentos (Gestión Documental)</h2>
+        {documentos.length === 0 ? (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">Sin documentos asociados.</p>
+        ) : (
+          <ul className="flex flex-col gap-1 text-sm">
+            {documentos.map((d) => (
+              <li key={d.id}>
+                {d.nombre} (v{d.version}){d.categoria ? ` — ${d.categoria}` : ""}
+              </li>
+            ))}
+          </ul>
+        )}
+        <SubirDocumentoPersonaForm empresaId={empresaId} personaId={personaId} />
       </section>
     </div>
   );

@@ -1,9 +1,14 @@
 import { notFound } from "next/navigation";
 import { obtenerEmpresa } from "@/cores/core-1-estructura/queries";
-import { listarAlertasPendientes, listarInstanciasPendientesOVencidas, listarObligaciones } from "@/cores/core-8-cumplimiento/queries";
+import {
+  listarAlertasPendientes,
+  listarInstanciasPendientesOVencidas,
+  listarObligaciones,
+  obtenerDocumentosRequeridos,
+} from "@/cores/core-8-cumplimiento/queries";
 import { listarPersonas } from "@/cores/core-3-personas/queries";
 import { atenderAlertaAction } from "./actions";
-import { CrearInstanciaForm, CrearObligacionForm, RegistrarAccionInline } from "./forms";
+import { AgregarDocumentoRequeridoForm, CrearInstanciaForm, CrearObligacionForm, RegistrarAccionInline } from "./forms";
 
 export default async function CumplimientoPage({ params }: PageProps<"/empresas/[empresaId]/cumplimiento">) {
   const { empresaId } = await params;
@@ -17,6 +22,7 @@ export default async function CumplimientoPage({ params }: PageProps<"/empresas/
     listarAlertasPendientes(empresaId),
     listarPersonas(empresaId),
   ]);
+  const documentosRequeridosPorObligacion = await Promise.all(obligaciones.map((o) => obtenerDocumentosRequeridos(o.id)));
 
   const obligacionPorId = new Map(obligaciones.map((o) => [o.id, o]));
 
@@ -88,6 +94,35 @@ export default async function CumplimientoPage({ params }: PageProps<"/empresas/
             ))}
           </ul>
         )}
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="font-medium">Obligaciones y documentos requeridos</h2>
+        {obligaciones.length === 0 ? (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">Todavía no hay obligaciones registradas.</p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+            {obligaciones.map((o, i) => (
+              <li key={o.id} className="flex flex-col gap-1 px-4 py-3">
+                <span className="font-medium">
+                  {o.nombre} {o.categoria ? `(${o.categoria})` : ""} · {o.periodicidad} · riesgo {o.riesgo_nivel_inherente}
+                </span>
+                {documentosRequeridosPorObligacion[i].length > 0 && (
+                  <ul className="ml-4 list-disc text-sm text-zinc-600 dark:text-zinc-400">
+                    {documentosRequeridosPorObligacion[i].map((d) => (
+                      <li key={d.id}>
+                        {d.nombre}
+                        {!d.obligatorio ? " (opcional)" : ""}
+                        {d.descripcion ? ` — ${d.descripcion}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        <AgregarDocumentoRequeridoForm empresaId={empresaId} obligaciones={obligaciones} />
       </section>
 
       <section className="flex flex-col gap-4">

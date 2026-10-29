@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { listarPuestos, obtenerPuestoCompleto } from "@/cores/core-2-puestos/queries";
 import { listarPersonas } from "@/cores/core-3-personas/queries";
@@ -31,7 +32,9 @@ export default async function PuestosPage({ params }: PageProps<"/empresas/[empr
               p ? (
                 <li key={p.id} className="flex items-center justify-between px-4 py-3">
                   <div>
-                    <p className="font-medium">{p.nombre}</p>
+                    <Link href={`/empresas/${empresaId}/puestos/${p.id}`} className="font-medium hover:underline">
+                      {p.nombre}
+                    </Link>
                     <p className="text-sm text-zinc-500 dark:text-zinc-400">
                       {p.familia_puesto ?? "Sin familia"} · {p.nivel ?? "Sin nivel"}
                     </p>

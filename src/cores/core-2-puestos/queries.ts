@@ -101,6 +101,76 @@ export async function obtenerPuestoCompleto(puestoId: string): Promise<PuestoCom
   };
 }
 
+export interface GuardarCondicionesInherentesInput {
+  puestoId: string;
+  riesgoExposicion?: string;
+  trabajoFisico?: string;
+  requiereViajes?: boolean;
+  frecuenciaViajes?: string;
+  disponibilidad?: string;
+  entorno?: string;
+  requerimientosEspeciales?: string;
+}
+
+/**
+ * `puesto_condiciones_inherentes.puesto_id` es único — upsert por diseño:
+ * no hay versión/historial aquí (a diferencia de banda_salarial), solo la
+ * descripción abstracta vigente del rol.
+ */
+export async function guardarCondicionesInherentes(
+  input: GuardarCondicionesInherentesInput
+): Promise<PuestoCondicionesInherentes> {
+  const { data, error } = await supabase
+    .from("puesto_condiciones_inherentes")
+    .upsert(
+      {
+        puesto_id: input.puestoId,
+        riesgo_exposicion: input.riesgoExposicion ?? null,
+        trabajo_fisico: input.trabajoFisico ?? null,
+        requiere_viajes: input.requiereViajes ?? false,
+        frecuencia_viajes: input.frecuenciaViajes ?? null,
+        disponibilidad: input.disponibilidad ?? null,
+        entorno: input.entorno ?? null,
+        requerimientos_especiales: input.requerimientosEspeciales ?? null,
+        actualizado_en: new Date().toISOString(),
+      },
+      { onConflict: "puesto_id" }
+    )
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export interface CrearKpiPuestoInput {
+  puestoId: string;
+  nombre: string;
+  descripcion?: string;
+  metaValor?: number;
+  metaUnidad?: string;
+  periodicidad?: string;
+  /** FK lógica a CORE 7 (indicador), opcional. */
+  indicadorId?: string;
+}
+
+export async function crearKpiPuesto(input: CrearKpiPuestoInput): Promise<KpiPuesto> {
+  const { data, error } = await supabase
+    .from("kpi_puesto")
+    .insert({
+      puesto_id: input.puestoId,
+      nombre: input.nombre,
+      descripcion: input.descripcion ?? null,
+      meta_valor: input.metaValor ?? null,
+      meta_unidad: input.metaUnidad ?? null,
+      periodicidad: input.periodicidad ?? null,
+      indicador_id: input.indicadorId ?? null,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export interface RegistrarBandaSalarialInput {
   puestoId: string;
   salarioMin: number;

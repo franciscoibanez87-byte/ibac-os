@@ -71,6 +71,19 @@ Dos huecos reales en la capa de consultas, descubiertos al construir la UI (no t
 
 Validado con `tsc --noEmit`, `eslint` y `next build` limpios para las 13 rutas, y un smoke test con `next dev` confirmando que las 9 páginas nuevas llegan hasta el cliente Supabase sin errores de wiring (fallan únicamente por no haber una instancia real configurada en este entorno).
 
+### Piezas que quedaban fuera de la primera pasada (2026-10-29)
+
+Completado lo que faltaba de la UI de los COREs ya construidos:
+
+- **Detalle de puesto** (`/puestos/[puestoId]`, CORE 2): condiciones inherentes al rol (upsert — no tiene historial, a diferencia de la banda salarial) y KPIs del puesto (meta). Se agregaron `guardarCondicionesInherentes` y `crearKpiPuesto` a `queries.ts`, que no existían.
+- **Detalle de persona** (CORE 3), tres secciones nuevas:
+  - **Historial de movimientos** (EventoMovimiento transversal) + registrar uno nuevo. El formulario es deliberadamente simple (no captura plaza anterior/nueva) — para un movimiento que involucre una plaza, se complementa con Estructura (CORE 1).
+  - **Evidencia de asistencia** (CORE 8) + registrar una nueva.
+  - **Documentos** (Gestión Documental transversal): subir un documento y asociarlo a la persona. Como no hay integración con Supabase Storage todavía, el formulario pide la `storage_path` directamente — no sube un archivo real.
+- **Documentos requeridos por obligación** (`/cumplimiento`, CORE 8): cada obligación ahora muestra y permite agregar los documentos que exige (la exigencia, no la evidencia entregada).
+
+Validado igual que las pasadas anteriores: `tsc --noEmit`, `eslint` y `next build` limpios para las 14 rutas, y smoke test con `next dev` sin errores de código en ninguna ruta.
+
 ## Stack técnico
 
 - **Frontend + Backend**: Next.js (App Router, TypeScript, Tailwind)

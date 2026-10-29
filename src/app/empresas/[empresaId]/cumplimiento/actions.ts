@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  agregarDocumentoRequerido,
   atenderAlerta,
   crearInstancia,
   crearObligacion,
@@ -72,6 +73,25 @@ export async function registrarAccionAction(formData: FormData): Promise<void> {
 
   await registrarAccionCumplimiento({ instanciaId, accionRealizada, nuevoEstatus });
   revalidatePath(`/empresas/${empresaId}/cumplimiento`);
+}
+
+export async function agregarDocumentoRequeridoAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const empresaId = str(formData, "empresaId");
+  const obligacionId = str(formData, "obligacionId");
+  const nombre = str(formData, "nombre");
+  if (!obligacionId || !nombre) return { error: "Obligación y nombre del documento son obligatorios." };
+
+  try {
+    await agregarDocumentoRequerido(obligacionId, nombre, {
+      descripcion: str(formData, "descripcion") || undefined,
+      obligatorio: formData.get("obligatorio") === "on",
+    });
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "No se pudo agregar el documento requerido." };
+  }
+
+  revalidatePath(`/empresas/${empresaId}/cumplimiento`);
+  return undefined;
 }
 
 export async function atenderAlertaAction(formData: FormData): Promise<void> {

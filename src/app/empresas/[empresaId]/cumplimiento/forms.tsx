@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import type { ObligacionCumplimiento } from "@/cores/core-8-cumplimiento/types";
 import type { Persona } from "@/cores/core-3-personas/types";
-import { crearInstanciaAction, crearObligacionAction, registrarAccionAction } from "./actions";
+import { agregarDocumentoRequeridoAction, crearInstanciaAction, crearObligacionAction, registrarAccionAction } from "./actions";
 
 const inputClass =
   "rounded border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700";
@@ -81,6 +81,43 @@ export function CrearInstanciaForm({
       {state?.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
       <button type="submit" disabled={pending} className={buttonClass}>
         {pending ? "Creando..." : "Agregar instancia"}
+      </button>
+    </form>
+  );
+}
+
+export function AgregarDocumentoRequeridoForm({
+  empresaId,
+  obligaciones,
+}: {
+  empresaId: string;
+  obligaciones: ObligacionCumplimiento[];
+}) {
+  const [state, formAction, pending] = useActionState(agregarDocumentoRequeridoAction, undefined);
+  return (
+    <form action={formAction} className="flex flex-col gap-3">
+      <input type="hidden" name="empresaId" value={empresaId} />
+      <div className="grid gap-3 sm:grid-cols-4">
+        <select name="obligacionId" required defaultValue="" className={inputClass}>
+          <option value="" disabled>
+            Obligación *
+          </option>
+          {obligaciones.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.nombre}
+            </option>
+          ))}
+        </select>
+        <input name="nombre" placeholder="Documento requerido *" required className={inputClass} />
+        <input name="descripcion" placeholder="Descripción" className={inputClass} />
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="obligatorio" defaultChecked />
+          Obligatorio
+        </label>
+      </div>
+      {state?.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
+      <button type="submit" disabled={pending} className={buttonClass}>
+        {pending ? "Agregando..." : "Agregar documento requerido"}
       </button>
     </form>
   );
