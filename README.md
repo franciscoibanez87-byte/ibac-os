@@ -33,6 +33,8 @@ Ejemplos de fuente única de verdad ya resueltos en el diseño:
 - **Salario**: Puesto (CORE 2) define banda de referencia; Contrato (CORE 4) es la única fuente del salario pactado y versionado; Persona (CORE 3) no almacena salario propio. Tanto la banda de referencia como el contrato versionan su ciclo de vida a través del Motor de Objeto Gobernado (`registrarBandaSalarial` / `registrarContrato`), no con columnas propias.
 - **Asignación** (Persona↔Plaza↔Vigencia) vive en CORE 1, no en CORE 3.
 - **EventoMovimiento** es una entidad transversal única: alta, baja, reingreso, promoción, transferencia, cambio de plaza, cambio contractual — se registra una sola vez y los COREs la consumen por referencia.
+- **Indicador ≠ Meta ≠ Resultado**: la definición general del indicador vive en CORE 7 (`indicador`); la META que fija un puesto en particular vive en CORE 2 (`kpi_puesto`); el RESULTADO medido vive en CORE 7 (`resultado_indicador`). Ninguna se fusiona con las otras.
+- **CORE 8 (Cumplimiento) no usa el Motor de Objeto Gobernado**: sus registros son operativos (seguimiento de obligaciones con estatus propio), no documentos normativos versionados. La frontera con CORE 6 es explícita: Procedimiento = cómo se ejecuta; Cumplimiento = demostrar que se cumplió.
 
 ## Stack técnico
 
