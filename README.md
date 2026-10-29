@@ -84,3 +84,11 @@ npm run dev
 ```
 
 Abre [http://localhost:3000](http://localhost:3000).
+
+## Pruebas de base de datos
+
+```bash
+bash supabase/tests/run.sh
+```
+
+Levanta una BD Postgres de pruebas desechable, corre las 14 migraciones y ejecuta ~39 aserciones (casos que deben tener éxito y casos que deben fallar) sobre cada CORE y servicio transversal, incluida una prueba de concurrencia real para el fix de integridad de 0013. Sale con código 0 si todo pasa, 1 si algo falla — correr después de tocar cualquier migración o función de la BD, no solo cuando algo "se ve raro".
