@@ -6,7 +6,7 @@
 // reemplazar/corregir uno existente usar `subirNuevaVersionDocumento`,
 // que cierra la versión vigente y crea la siguiente de forma atómica.
 
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import type {
   Documento,
   DocumentoAsociacion,

@@ -6,7 +6,7 @@
 // impiden combinaciones inválidas de plaza_anterior_id/plaza_nueva_id
 // según el tipo.
 
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import type { EventoMovimiento, EventoMovimientoTipo } from "./types";
 
 export interface RegistrarEventoMovimientoInput {

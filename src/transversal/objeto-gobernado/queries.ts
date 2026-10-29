@@ -4,7 +4,7 @@
 // cliente — siempre pasar por estas RPC, que llaman a las funciones de
 // Postgres correspondientes (ver 0005_transversal_objeto_gobernado.sql).
 
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import type { ObjetoGobernado, ObjetoGobernadoTipo } from "./types";
 
 export interface CrearVersionInput {

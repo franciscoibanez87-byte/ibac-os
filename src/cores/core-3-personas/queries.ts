@@ -6,7 +6,7 @@
 // obtenerHistorialSalarial). Mezclar esa lógica aquí reintroduciría el
 // problema de ownership que la corrección de arquitectura eliminó.
 
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import type { Persona, PersonaEstatus } from "./types";
 
 export async function listarPersonas(

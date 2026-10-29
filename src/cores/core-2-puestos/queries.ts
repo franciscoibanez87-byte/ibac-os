@@ -5,7 +5,7 @@
 // de Postgres `registrar_banda_salarial` — encuentra automáticamente el
 // lineage existente del puesto (si lo hay) y lo revisa, o crea uno nuevo.
 
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import type { ObjetoGobernado } from "@/transversal/objeto-gobernado/types";
 import type {
   BandaSalarial,

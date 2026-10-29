@@ -8,7 +8,7 @@
 // automáticamente (vía el objeto_gobernado referenciado) y lo revisa de
 // forma atómica, o crea uno nuevo si la persona no tiene contrato previo.
 
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import type { Contrato, ContratoJornada, ContratoModalidad, ContratoPeriodicidadPago, ContratoTipo, HistorialSalarialEntry } from "./types";
 
 export async function obtenerContratoVigente(personaId: string): Promise<Contrato | null> {

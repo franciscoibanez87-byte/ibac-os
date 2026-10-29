@@ -1,6 +1,6 @@
 // CORE 6 — Procedimientos: lecturas + creación.
 
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import { crearVersionObjetoGobernado } from "@/transversal/objeto-gobernado/queries";
 import type { ObjetoGobernado } from "@/transversal/objeto-gobernado/types";
 import type { Procedimiento, ProcedimientoCompleto, ProcedimientoPaso } from "./types";

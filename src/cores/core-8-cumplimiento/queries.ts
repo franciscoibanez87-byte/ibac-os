@@ -5,7 +5,7 @@
 // inserciones/actualizaciones son directas. `uq_cumplimiento_instancia_periodo`
 // ya impide crear dos instancias para el mismo período de una obligación.
 
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import type {
   AlertaCumplimiento,
   CumplimientoEstatus,

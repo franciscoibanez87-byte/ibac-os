@@ -6,7 +6,7 @@
 // unicidad por período (`uq_resultado_indicador_periodo`) que ya hace de
 // guarda contra duplicados.
 
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import type { Indicador, KpiPuestoResultadoReciente, ResultadoIndicador } from "./types";
 
 export async function listarIndicadores(empresaId: string): Promise<Indicador[]> {

@@ -48,6 +48,15 @@ Antes de empezar las páginas de Next.js se auditó todo lo construido hasta ese
 4. **`documento_asociacion`/`documento_permiso` apuntaban a una versión puntual**, no al documento lógico — una nueva versión dejaba huérfanas las asociaciones/permisos anteriores. La migración 0014 las mueve a `documento_logico_id` y agrega las vistas `documento_asociacion_vigente`/`documento_permiso_vigente` que resuelven siempre a la versión vigente.
 5. **Fuga de tipo en CORE 8**: una consulta usaba el embedding automático de PostgREST, devolviendo un campo no declarado en el tipo. Reescrita como dos consultas, consistente con el resto del proyecto.
 
+### Primeras páginas de Next.js (2026-10-29)
+
+Arrancó la capa de UI consumiendo la capa de TypeScript ya construida para los 8 COREs y los 3 servicios transversales. Dos decisiones de arquitectura quedaron fijadas en este punto:
+
+1. **Cliente Supabase con `service_role`, solo en servidor.** Todavía no existe autenticación de usuarios finales, y las políticas RLS de cada migración son deliberadamente restrictivas ("Escritura: por ahora solo via service_role, hasta definir matriz de permisos por rol") — ni siquiera las lecturas pasan con el rol `authenticated`, porque nadie está autenticado. `src/lib/supabase-admin.ts` expone ese cliente protegido con el paquete `server-only` (cualquier intento de importarlo desde un Client Component falla en build time, no en producción), y las 11 `queries.ts` (8 COREs + 3 transversales) ya importan de ahí en vez del cliente anon. Mientras no exista auth, Next.js actúa como backend de confianza: toda lectura y escritura pasa por Server Components y Server Actions, nunca desde el navegador.
+2. **`export const instant = false` en el layout raíz.** Con `cacheComponents` habilitado (experimental de Next.js 16), cada ruta debe producir un "static shell" o declarar explícitamente que puede bloquear la navegación. Como todo IBAC OS lee datos en vivo de Supabase en cada request, se declaró una sola vez en el layout raíz en vez de en cada página.
+
+Primer CORE con UI funcional de punta a punta: **CORE 1 — Estructura Organizacional** (`/empresas`, `/empresas/[empresaId]`): listar/crear empresas, sedes, árbol de unidades organizacionales con sus plazas, y asignar/finalizar la ocupación de una plaza, con Server Actions que respetan las mismas invariantes que ya protege la base de datos (p. ej. `crearAsignacion` falla con un mensaje claro si la plaza ya tiene titular activo, en vez de reintentar a ciegas). Los demás COREs ya tienen su capa de consultas lista; falta construirles páginas.
+
 ## Stack técnico
 
 - **Frontend + Backend**: Next.js (App Router, TypeScript, Tailwind)
@@ -80,10 +89,13 @@ supabase/
 
 ```bash
 npm install
+cp .env.example .env.local   # completa con la instancia Supabase de este cliente
 npm run dev
 ```
 
-Abre [http://localhost:3000](http://localhost:3000).
+Abre [http://localhost:3000](http://localhost:3000) — redirige a `/empresas`.
+
+`SUPABASE_SERVICE_ROLE_KEY` (en `.env.local`, nunca con prefijo `NEXT_PUBLIC_`) es obligatoria: toda la app lee y escribe con ese cliente desde el servidor (ver "Primeras páginas de Next.js" arriba).
 
 ## Pruebas de base de datos
 

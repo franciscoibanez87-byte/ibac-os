@@ -8,7 +8,7 @@
 // cliente debe estar preparado para que `crearAsignacion` falle por esa
 // restricción y mostrar un mensaje claro, no reintentar a ciegas.
 
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import type {
   Asignacion,
   AsignacionTipo,

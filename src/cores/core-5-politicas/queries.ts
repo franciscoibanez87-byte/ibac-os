@@ -6,7 +6,7 @@
 // (objeto_gobernado_id, tipo_objeto). Es más verboso pero no depende de
 // que PostgREST infiera correctamente una relación sobre una FK compuesta.
 
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import { crearVersionObjetoGobernado } from "@/transversal/objeto-gobernado/queries";
 import type { ObjetoGobernado } from "@/transversal/objeto-gobernado/types";
 import type { Politica, PoliticaConEstado } from "./types";
