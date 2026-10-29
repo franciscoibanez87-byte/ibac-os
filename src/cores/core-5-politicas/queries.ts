@@ -32,6 +32,13 @@ export async function listarPoliticasVigentes(empresaId: string): Promise<Politi
   return resueltas.filter((p) => p.objeto_gobernado.estado === "publicado" && p.objeto_gobernado.vigente_hasta === null);
 }
 
+/** Todas las versiones (cualquier estado) de la empresa, para administrar el ciclo de vida. */
+export async function listarTodasLasPoliticas(empresaId: string): Promise<PoliticaConEstado[]> {
+  const { data: politicas, error } = await supabase.from("politica").select("*").eq("empresa_id", empresaId);
+  if (error) throw error;
+  return resolverEstado(politicas ?? []);
+}
+
 /** Todas las versiones (cualquier estado) de una política lógica, para ver su historial. */
 export async function listarVersionesDePolitica(objetoLogicoId: string): Promise<PoliticaConEstado[]> {
   const { data: objetos, error: errorObjetos } = await supabase

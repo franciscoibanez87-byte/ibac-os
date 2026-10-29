@@ -28,6 +28,32 @@ export async function listarPuestos(empresaId: string): Promise<Puesto[]> {
   return data ?? [];
 }
 
+export interface CrearPuestoInput {
+  empresaId: string;
+  nombre: string;
+  familiaPuesto?: string;
+  nivel?: string;
+  descripcionGeneral?: string;
+  objetivoPuesto?: string;
+}
+
+export async function crearPuesto(input: CrearPuestoInput): Promise<Puesto> {
+  const { data, error } = await supabase
+    .from("puesto")
+    .insert({
+      empresa_id: input.empresaId,
+      nombre: input.nombre,
+      familia_puesto: input.familiaPuesto ?? null,
+      nivel: input.nivel ?? null,
+      descripcion_general: input.descripcionGeneral ?? null,
+      objetivo_puesto: input.objetivoPuesto ?? null,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 async function obtenerBandaVigente(puestoId: string): Promise<BandaSalarialConEstado | null> {
   const { data: bandas, error } = await supabase.from("banda_salarial").select("*").eq("puesto_id", puestoId);
   if (error) throw error;

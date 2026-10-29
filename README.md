@@ -55,7 +55,21 @@ Arrancó la capa de UI consumiendo la capa de TypeScript ya construida para los 
 1. **Cliente Supabase con `service_role`, solo en servidor.** Todavía no existe autenticación de usuarios finales, y las políticas RLS de cada migración son deliberadamente restrictivas ("Escritura: por ahora solo via service_role, hasta definir matriz de permisos por rol") — ni siquiera las lecturas pasan con el rol `authenticated`, porque nadie está autenticado. `src/lib/supabase-admin.ts` expone ese cliente protegido con el paquete `server-only` (cualquier intento de importarlo desde un Client Component falla en build time, no en producción), y las 11 `queries.ts` (8 COREs + 3 transversales) ya importan de ahí en vez del cliente anon. Mientras no exista auth, Next.js actúa como backend de confianza: toda lectura y escritura pasa por Server Components y Server Actions, nunca desde el navegador.
 2. **`export const instant = false` en el layout raíz.** Con `cacheComponents` habilitado (experimental de Next.js 16), cada ruta debe producir un "static shell" o declarar explícitamente que puede bloquear la navegación. Como todo IBAC OS lee datos en vivo de Supabase en cada request, se declaró una sola vez en el layout raíz en vez de en cada página.
 
-Primer CORE con UI funcional de punta a punta: **CORE 1 — Estructura Organizacional** (`/empresas`, `/empresas/[empresaId]`): listar/crear empresas, sedes, árbol de unidades organizacionales con sus plazas, y asignar/finalizar la ocupación de una plaza, con Server Actions que respetan las mismas invariantes que ya protege la base de datos (p. ej. `crearAsignacion` falla con un mensaje claro si la plaza ya tiene titular activo, en vez de reintentar a ciegas). Los demás COREs ya tienen su capa de consultas lista; falta construirles páginas.
+Primer CORE con UI funcional de punta a punta: **CORE 1 — Estructura Organizacional** (`/empresas`, `/empresas/[empresaId]`): listar/crear empresas, sedes, árbol de unidades organizacionales con sus plazas, y asignar/finalizar la ocupación de una plaza, con Server Actions que respetan las mismas invariantes que ya protege la base de datos (p. ej. `crearAsignacion` falla con un mensaje claro si la plaza ya tiene titular activo, en vez de reintentar a ciegas).
+
+### Páginas de los 7 COREs restantes + nav por empresa (2026-10-29)
+
+Con el patrón de CORE 1 ya probado (Server Components para lectura, Server Actions para escritura, el cliente `service_role`), se construyeron las páginas de todo lo que faltaba, todas bajo `/empresas/[empresaId]/...` y con un nav (`empresa-nav.tsx`) que las conecta:
+
+- **`/puestos`** (CORE 2): catálogo de puestos y su banda salarial vigente; registrar/revisar banda vía `registrarBandaSalarial`.
+- **`/personas`** y **`/personas/[personaId]`** (CORE 3 + CORE 4): expedientes, con su ocupación vigente (CORE 1) y su contrato/historial salarial (CORE 4) resueltos por referencia — nunca duplicados. Registrar/revisar contrato vía `registrarContrato`.
+- **`/politicas`** y **`/procedimientos`** (CORE 5 y 6): ciclo de vida del Motor de Objeto Gobernado (borrador → aprobado → publicado → archivado) con controles inline reutilizables (`lifecycle-buttons.tsx`, `lifecycle-actions.ts`).
+- **`/indicadores`** (CORE 7): catálogo de indicadores y registro de resultados medidos por período.
+- **`/cumplimiento`** (CORE 8): obligaciones, instancias pendientes/vencidas con registro de acción inline, y alertas pendientes.
+
+Dos huecos reales en la capa de consultas, descubiertos al construir la UI (no todo CORE tenía una función `crear*` básica), se corrigieron antes de usarlos: se agregó `crearPuesto` (CORE 2) y `crearPersona` (CORE 3), además de `listarTodasLasPoliticas` (CORE 5) y `listarProcedimientos` (CORE 6) para poder administrar el ciclo de vida completo, no solo las versiones ya vigentes.
+
+Validado con `tsc --noEmit`, `eslint` y `next build` limpios para las 13 rutas, y un smoke test con `next dev` confirmando que las 9 páginas nuevas llegan hasta el cliente Supabase sin errores de wiring (fallan únicamente por no haber una instancia real configurada en este entorno).
 
 ## Stack técnico
 

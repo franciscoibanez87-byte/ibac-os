@@ -5,6 +5,37 @@ import { crearVersionObjetoGobernado } from "@/transversal/objeto-gobernado/quer
 import type { ObjetoGobernado } from "@/transversal/objeto-gobernado/types";
 import type { Procedimiento, ProcedimientoCompleto, ProcedimientoPaso } from "./types";
 
+/** Todas las versiones (cualquier estado) de la empresa, para administrar el ciclo de vida. */
+export async function listarProcedimientos(empresaId: string): Promise<ProcedimientoCompleto[]> {
+  const { data: procedimientos, error } = await supabase.from("procedimiento").select("*").eq("empresa_id", empresaId);
+  if (error) throw error;
+  if (!procedimientos || procedimientos.length === 0) return [];
+
+  const ids = procedimientos.map((p) => p.objeto_gobernado_id);
+  const [{ data: objetos, error: errorObjetos }, { data: pasos, error: errorPasos }] = await Promise.all([
+    supabase.from("objeto_gobernado").select("*").in("id", ids),
+    supabase
+      .from("procedimiento_paso")
+      .select("*")
+      .in("procedimiento_id", procedimientos.map((p) => p.id))
+      .order("orden"),
+  ]);
+  if (errorObjetos) throw errorObjetos;
+  if (errorPasos) throw errorPasos;
+
+  const objetoPorId = new Map((objetos ?? []).map((o) => [o.id, o as ObjetoGobernado]));
+  const pasosPorProcedimiento = new Map<string, ProcedimientoPaso[]>();
+  for (const paso of (pasos as ProcedimientoPaso[]) ?? []) {
+    pasosPorProcedimiento.set(paso.procedimiento_id, [...(pasosPorProcedimiento.get(paso.procedimiento_id) ?? []), paso]);
+  }
+
+  return (procedimientos as Procedimiento[]).map((p) => ({
+    ...p,
+    objeto_gobernado: objetoPorId.get(p.objeto_gobernado_id)!,
+    pasos: pasosPorProcedimiento.get(p.id) ?? [],
+  }));
+}
+
 export async function obtenerProcedimientoCompleto(procedimientoId: string): Promise<ProcedimientoCompleto | null> {
   const { data: procedimiento, error: errorProcedimiento } = await supabase
     .from("procedimiento")
