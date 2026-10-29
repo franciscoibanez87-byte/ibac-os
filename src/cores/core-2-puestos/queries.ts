@@ -1,9 +1,20 @@
-// CORE 2 — Puestos: lecturas básicas.
-// Solo lectura por ahora — la escritura queda detrás del backend
-// (service_role) hasta definir la matriz de permisos por rol.
+// CORE 2 — Puestos: lecturas + registro de bandas salariales.
+//
+// IMPORTANTE: nunca insertar directamente en `banda_salarial` ni editar su
+// vigencia a mano. Usar `registrarBandaSalarial`, que llama a la función
+// de Postgres `registrar_banda_salarial` — encuentra automáticamente el
+// lineage existente del puesto (si lo hay) y lo revisa, o crea uno nuevo.
 
 import { supabase } from "@/lib/supabase";
-import type { BandaSalarial, KpiPuesto, Puesto, PuestoCompleto, PuestoCondicionesInherentes } from "./types";
+import type { ObjetoGobernado } from "@/transversal/objeto-gobernado/types";
+import type {
+  BandaSalarial,
+  BandaSalarialConEstado,
+  KpiPuesto,
+  Puesto,
+  PuestoCompleto,
+  PuestoCondicionesInherentes,
+} from "./types";
 
 export async function listarPuestos(empresaId: string): Promise<Puesto[]> {
   const { data, error } = await supabase
@@ -17,6 +28,29 @@ export async function listarPuestos(empresaId: string): Promise<Puesto[]> {
   return data ?? [];
 }
 
+async function obtenerBandaVigente(puestoId: string): Promise<BandaSalarialConEstado | null> {
+  const { data: bandas, error } = await supabase.from("banda_salarial").select("*").eq("puesto_id", puestoId);
+  if (error) throw error;
+  if (!bandas || bandas.length === 0) return null;
+
+  const { data: objetos, error: errorObjetos } = await supabase
+    .from("objeto_gobernado")
+    .select("*")
+    .in(
+      "id",
+      bandas.map((b) => b.objeto_gobernado_id)
+    )
+    .eq("estado", "publicado")
+    .is("vigente_hasta", null);
+  if (errorObjetos) throw errorObjetos;
+  if (!objetos || objetos.length === 0) return null;
+
+  const objetoVigente = objetos[0] as ObjetoGobernado;
+  const banda = bandas.find((b) => b.objeto_gobernado_id === objetoVigente.id) as BandaSalarial;
+
+  return { ...banda, objeto_gobernado: objetoVigente };
+}
+
 export async function obtenerPuestoCompleto(puestoId: string): Promise<PuestoCompleto | null> {
   const { data: puesto, error: errorPuesto } = await supabase
     .from("puesto")
@@ -27,29 +61,45 @@ export async function obtenerPuestoCompleto(puestoId: string): Promise<PuestoCom
   if (errorPuesto) throw errorPuesto;
   if (!puesto) return null;
 
-  const [{ data: condiciones }, { data: bandaVigente }, { data: kpis }] = await Promise.all([
-    supabase
-      .from("puesto_condiciones_inherentes")
-      .select("*")
-      .eq("puesto_id", puestoId)
-      .maybeSingle(),
-    supabase
-      .from("banda_salarial")
-      .select("*")
-      .eq("puesto_id", puestoId)
-      .is("vigente_hasta", null)
-      .maybeSingle(),
-    supabase
-      .from("kpi_puesto")
-      .select("*")
-      .eq("puesto_id", puestoId)
-      .eq("activo", true),
+  const [{ data: condiciones }, bandaVigente, { data: kpis }] = await Promise.all([
+    supabase.from("puesto_condiciones_inherentes").select("*").eq("puesto_id", puestoId).maybeSingle(),
+    obtenerBandaVigente(puestoId),
+    supabase.from("kpi_puesto").select("*").eq("puesto_id", puestoId).eq("activo", true),
   ]);
 
   return {
     ...(puesto as Puesto),
     condiciones_inherentes: (condiciones as PuestoCondicionesInherentes) ?? null,
-    banda_salarial_vigente: (bandaVigente as BandaSalarial) ?? null,
+    banda_salarial_vigente: bandaVigente,
     kpis: (kpis as KpiPuesto[]) ?? [],
   };
+}
+
+export interface RegistrarBandaSalarialInput {
+  puestoId: string;
+  salarioMin: number;
+  salarioMax: number;
+  autorId: string;
+  salarioMedio?: number;
+  moneda?: string;
+  /** Obligatorio al revisar una banda existente (no para la primera). */
+  motivoNuevaVersion?: string;
+  vigenteDesde?: string;
+}
+
+/** Única vía soportada para crear o revisar una banda salarial. */
+export async function registrarBandaSalarial(input: RegistrarBandaSalarialInput): Promise<BandaSalarial> {
+  const { data, error } = await supabase.rpc("registrar_banda_salarial", {
+    p_puesto_id: input.puestoId,
+    p_salario_min: input.salarioMin,
+    p_salario_max: input.salarioMax,
+    p_autor_id: input.autorId,
+    p_salario_medio: input.salarioMedio ?? null,
+    p_moneda: input.moneda ?? "MXN",
+    p_motivo_nueva_version: input.motivoNuevaVersion ?? null,
+    p_vigente_desde: input.vigenteDesde ?? new Date().toISOString().slice(0, 10),
+  });
+
+  if (error) throw error;
+  return data as BandaSalarial;
 }

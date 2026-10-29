@@ -30,7 +30,7 @@ Sistema de RH para PyMEs/empresas medianas (20-500 empleados), diseñado y desar
 3. Los módulos/subsistemas agregan capacidades; no crean nuevas fuentes de verdad sobre datos CORE.
 
 Ejemplos de fuente única de verdad ya resueltos en el diseño:
-- **Salario**: Puesto (CORE 2) define banda de referencia; Contrato (CORE 4) es la única fuente del salario pactado y versionado; Persona (CORE 3) no almacena salario propio.
+- **Salario**: Puesto (CORE 2) define banda de referencia; Contrato (CORE 4) es la única fuente del salario pactado y versionado; Persona (CORE 3) no almacena salario propio. Tanto la banda de referencia como el contrato versionan su ciclo de vida a través del Motor de Objeto Gobernado (`registrarBandaSalarial` / `registrarContrato`), no con columnas propias.
 - **Asignación** (Persona↔Plaza↔Vigencia) vive en CORE 1, no en CORE 3.
 - **EventoMovimiento** es una entidad transversal única: alta, baja, reingreso, promoción, transferencia, cambio de plaza, cambio contractual — se registra una sola vez y los COREs la consumen por referencia.
 

@@ -1,8 +1,12 @@
 // CORE 2 — Puestos
-// Tipos que reflejan 1:1 el esquema de supabase/migrations/0002_core2_puestos.sql
+// Refleja 1:1 supabase/migrations/0002_core2_puestos.sql + el refactor
+// de 0008 (banda_salarial ahora delega versión/vigencia al
+// objeto_gobernado referenciado — ver src/transversal/objeto-gobernado).
 //
 // Regla de oro: Puesto define banda salarial de REFERENCIA, nunca el
-// salario pactado (eso vive en CORE 4 — Contratos, aún no construido).
+// salario pactado (eso vive en CORE 4 — Contratos).
+
+import type { ObjetoGobernado } from "@/transversal/objeto-gobernado/types";
 
 export interface Puesto {
   id: string;
@@ -36,19 +40,23 @@ export interface PuestoCondicionesInherentes {
 }
 
 /**
- * Banda de REFERENCIA, versionada por vigencia. Un puesto no puede tener
- * dos bandas vigentes (vigente_hasta = null) al mismo tiempo.
+ * Banda de REFERENCIA. Versión/aprobación/vigencia/publicación viven en
+ * el objeto_gobernado referenciado (objeto_gobernado_id), no en columnas
+ * propias de esta tabla — se gestiona vía registrarBandaSalarial.
  */
 export interface BandaSalarial {
   id: string;
+  objeto_gobernado_id: string;
   puesto_id: string;
   salario_min: number;
   salario_medio: number | null;
   salario_max: number;
   moneda: string;
-  vigente_desde: string;
-  vigente_hasta: string | null;
   creado_en: string;
+}
+
+export interface BandaSalarialConEstado extends BandaSalarial {
+  objeto_gobernado: ObjetoGobernado;
 }
 
 /**
@@ -73,6 +81,6 @@ export interface KpiPuesto {
 /** Puesto con sus relaciones 1:N/1:1 ya resueltas, para vistas de perfil completo. */
 export interface PuestoCompleto extends Puesto {
   condiciones_inherentes: PuestoCondicionesInherentes | null;
-  banda_salarial_vigente: BandaSalarial | null;
+  banda_salarial_vigente: BandaSalarialConEstado | null;
   kpis: KpiPuesto[];
 }

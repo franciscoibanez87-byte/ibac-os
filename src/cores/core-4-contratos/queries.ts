@@ -2,24 +2,33 @@
 // un cambio contractual (incluyendo salario).
 //
 // IMPORTANTE: nunca hacer un `update` directo sobre `salario_pactado` de
-// una fila existente. Para cualquier cambio contractual (incluido un
-// aumento de sueldo), usar `registrarNuevaVersionContrato`, que llama a
-// la función de Postgres `registrar_nueva_version_contrato` y cierra +
-// abre versión de forma atómica.
+// una fila existente. Para cualquier cambio contractual, usar
+// `registrarContrato`, que llama a la función de Postgres
+// `registrar_contrato` — encuentra el lineage existente de la persona
+// automáticamente (vía el objeto_gobernado referenciado) y lo revisa de
+// forma atómica, o crea uno nuevo si la persona no tiene contrato previo.
 
 import { supabase } from "@/lib/supabase";
-import type { Contrato, HistorialSalarialEntry } from "./types";
+import type { Contrato, ContratoJornada, ContratoModalidad, ContratoPeriodicidadPago, ContratoTipo, HistorialSalarialEntry } from "./types";
 
 export async function obtenerContratoVigente(personaId: string): Promise<Contrato | null> {
-  const { data, error } = await supabase
-    .from("contrato")
-    .select("*")
-    .eq("persona_id", personaId)
-    .is("vigente_hasta", null)
-    .maybeSingle();
-
+  const { data: contratos, error } = await supabase.from("contrato").select("*").eq("persona_id", personaId);
   if (error) throw error;
-  return data;
+  if (!contratos || contratos.length === 0) return null;
+
+  const { data: objetos, error: errorObjetos } = await supabase
+    .from("objeto_gobernado")
+    .select("id")
+    .in(
+      "id",
+      contratos.map((c) => c.objeto_gobernado_id)
+    )
+    .eq("estado", "publicado")
+    .is("vigente_hasta", null);
+  if (errorObjetos) throw errorObjetos;
+  if (!objetos || objetos.length === 0) return null;
+
+  return (contratos.find((c) => c.objeto_gobernado_id === objetos[0].id) as Contrato) ?? null;
 }
 
 export async function obtenerHistorialSalarial(personaId: string): Promise<HistorialSalarialEntry[]> {
@@ -33,42 +42,41 @@ export async function obtenerHistorialSalarial(personaId: string): Promise<Histo
   return data ?? [];
 }
 
-export interface NuevaVersionContratoInput {
+export interface RegistrarContratoInput {
   personaId: string;
   empresaId: string;
-  motivoModificacion: string; // obligatorio — ver CHECK en la tabla
-  tipoContrato: Contrato["tipo_contrato"];
-  modalidad: Contrato["modalidad"];
-  jornadaPactada: Contrato["jornada_pactada"];
-  periodicidadPago: Contrato["periodicidad_pago"];
+  autorId: string;
+  tipoContrato: ContratoTipo;
+  modalidad: ContratoModalidad;
+  jornadaPactada: ContratoJornada;
+  periodicidadPago: ContratoPeriodicidadPago;
   salarioPactado: number;
   moneda?: string;
   condicionesContractuales?: string;
-  fechaInicio: string;
+  fechaInicio?: string;
   fechaFin?: string | null;
-  vigenteDesde: string;
+  /** Obligatorio al revisar un contrato existente (no para el primero). */
+  motivoNuevaVersion?: string;
+  vigenteDesde?: string;
 }
 
-/**
- * Única función soportada para cambiar un contrato. Cierra la versión
- * vigente actual (si existe) y crea la siguiente, de forma atómica, vía
- * la función de Postgres `registrar_nueva_version_contrato`.
- */
-export async function registrarNuevaVersionContrato(input: NuevaVersionContratoInput): Promise<Contrato> {
-  const { data, error } = await supabase.rpc("registrar_nueva_version_contrato", {
+/** Única función soportada para crear o revisar un contrato. */
+export async function registrarContrato(input: RegistrarContratoInput): Promise<Contrato> {
+  const { data, error } = await supabase.rpc("registrar_contrato", {
     p_persona_id: input.personaId,
     p_empresa_id: input.empresaId,
-    p_motivo_modificacion: input.motivoModificacion,
     p_tipo_contrato: input.tipoContrato,
     p_modalidad: input.modalidad,
     p_jornada_pactada: input.jornadaPactada,
     p_periodicidad_pago: input.periodicidadPago,
     p_salario_pactado: input.salarioPactado,
+    p_autor_id: input.autorId,
     p_moneda: input.moneda ?? "MXN",
     p_condiciones_contractuales: input.condicionesContractuales ?? null,
-    p_fecha_inicio: input.fechaInicio,
+    p_fecha_inicio: input.fechaInicio ?? new Date().toISOString().slice(0, 10),
     p_fecha_fin: input.fechaFin ?? null,
-    p_vigente_desde: input.vigenteDesde,
+    p_motivo_nueva_version: input.motivoNuevaVersion ?? null,
+    p_vigente_desde: input.vigenteDesde ?? new Date().toISOString().slice(0, 10),
   });
 
   if (error) throw error;
