@@ -35,6 +35,8 @@ Ejemplos de fuente única de verdad ya resueltos en el diseño:
 - **EventoMovimiento** es una entidad transversal única: alta, baja, reingreso, promoción, transferencia, cambio de plaza, cambio contractual — se registra una sola vez y los COREs la consumen por referencia.
 - **Indicador ≠ Meta ≠ Resultado**: la definición general del indicador vive en CORE 7 (`indicador`); la META que fija un puesto en particular vive en CORE 2 (`kpi_puesto`); el RESULTADO medido vive en CORE 7 (`resultado_indicador`). Ninguna se fusiona con las otras.
 - **CORE 8 (Cumplimiento) no usa el Motor de Objeto Gobernado**: sus registros son operativos (seguimiento de obligaciones con estatus propio), no documentos normativos versionados. La frontera con CORE 6 es explícita: Procedimiento = cómo se ejecuta; Cumplimiento = demostrar que se cumplió.
+- **Gestión Documental** (transversal) tampoco usa el Motor de Objeto Gobernado: un documento almacenado tiene versiones sucesivas con una "vigente" (patrón propio `documento_logico_id`/`version`/`vigente`), no un ciclo normativo borrador→aprobado→publicado. Resuelve las FKs lógicas pendientes de `cumplimiento_instancia.evidencia_documento_id` y `evidencia_asistencia.evidencia_documento_id`.
+- **EventoMovimiento** (transversal) es el hecho único detrás de alta, baja, reingreso, promoción, transferencia, cambio de plaza y cambio contractual. Resuelve la FK lógica pendiente de `asignacion.evento_movimiento_id` (CORE 1); CORE 3 y CORE 4 lo consumen por referencia.
 
 ## Stack técnico
 
