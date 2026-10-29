@@ -4,7 +4,7 @@ import { listarPersonas, obtenerPersona } from "@/cores/core-3-personas/queries"
 import { obtenerContratoVigente, obtenerHistorialSalarial } from "@/cores/core-4-contratos/queries";
 import { obtenerEvidenciaAsistenciaPersona } from "@/cores/core-8-cumplimiento/queries";
 import { obtenerHistorialMovimientos } from "@/transversal/eventos/queries";
-import { obtenerDocumentosDeEntidad } from "@/transversal/documentos/queries";
+import { obtenerDocumentosDeEntidad, obtenerUrlDescarga } from "@/transversal/documentos/queries";
 import {
   RegistrarContratoForm,
   RegistrarEvidenciaForm,
@@ -29,6 +29,19 @@ export default async function PersonaDetallePage({
     obtenerHistorialMovimientos(personaId),
     obtenerDocumentosDeEntidad("persona", personaId),
   ]);
+
+  // URLs firmadas de corta duración — el bucket es privado, nunca hay una
+  // URL pública directa. Si una falla (p. ej. el archivo ya no existe en
+  // Storage), se omite el enlace en vez de romper la página.
+  const urlsDescarga = await Promise.all(
+    documentos.map(async (d) => {
+      try {
+        return await obtenerUrlDescarga(d.storage_path);
+      } catch {
+        return null;
+      }
+    })
+  );
 
   return (
     <div className="flex flex-col gap-10">
@@ -129,9 +142,19 @@ export default async function PersonaDetallePage({
           <p className="text-sm text-zinc-500 dark:text-zinc-400">Sin documentos asociados.</p>
         ) : (
           <ul className="flex flex-col gap-1 text-sm">
-            {documentos.map((d) => (
-              <li key={d.id}>
-                {d.nombre} (v{d.version}){d.categoria ? ` — ${d.categoria}` : ""}
+            {documentos.map((d, i) => (
+              <li key={d.id} className="flex items-center gap-2">
+                <span>
+                  {d.nombre} (v{d.version}){d.categoria ? ` — ${d.categoria}` : ""}
+                </span>
+                {urlsDescarga[i] && (
+                  <a
+                    href={urlsDescarga[i]!}
+                    className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
+                  >
+                    Descargar
+                  </a>
+                )}
               </li>
             ))}
           </ul>

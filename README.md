@@ -84,6 +84,16 @@ Completado lo que faltaba de la UI de los COREs ya construidos:
 
 Validado igual que las pasadas anteriores: `tsc --noEmit`, `eslint` y `next build` limpios para las 14 rutas, y smoke test con `next dev` sin errores de código en ninguna ruta.
 
+### Subida real de archivos a Supabase Storage (2026-10-29)
+
+El formulario de documentos de persona pedía la `storage_path` a mano porque nunca existió un bucket real donde apuntara — se cerró esa brecha:
+
+- **`0015_transversal_storage_documentos.sql`**: crea el bucket privado `documentos` (`public = false`) y su política de lectura `authenticated`. Es la primera migración del proyecto con una dependencia real de la plataforma Supabase (el esquema `storage` no existe en Postgres plano), así que va envuelta en un `do $$ if exists (schema 'storage') then ... end if; end $$;` — no-op contra el harness de pruebas local (`supabase/tests/run.sh`).
+- **`transversal/documentos/queries.ts`**: `subirDocumentoConArchivo` y `subirNuevaVersionDocumentoConArchivo` suben el archivo real al bucket y después registran los metadatos con las RPCs existentes (`subirDocumento`/`subirNuevaVersionDocumento`); si el registro falla, se borra el archivo huérfano del bucket antes de relanzar el error — nunca queda un archivo sin fila que lo referencie. `obtenerUrlDescarga` da una URL firmada de corta duración (5 min por defecto) — el bucket es privado, nunca hay URL pública directa.
+- **Detalle de persona**: el formulario de documentos ahora tiene un `<input type="file">` real en vez del campo de texto `storagePath`, y cada documento listado muestra un enlace "Descargar" con su URL firmada.
+
+Validado igual que las pasadas anteriores: `tsc --noEmit`, `eslint` y `next build` limpios, y smoke test con `next dev` sin errores de código en ninguna ruta.
+
 ## Stack técnico
 
 - **Frontend + Backend**: Next.js (App Router, TypeScript, Tailwind)

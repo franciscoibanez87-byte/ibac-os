@@ -17,6 +17,15 @@ import type {
   DocumentoPermisoVigente,
 } from "./types";
 
+// Bucket privado creado en 0015_transversal_storage_documentos.sql. Todo
+// acceso de lectura pasa por obtenerUrlDescarga (URL firmada, corta
+// duración) — nunca por una URL pública directa.
+const BUCKET = "documentos";
+
+function generarStoragePath(empresaId: string, nombreArchivo: string): string {
+  return `${empresaId}/${crypto.randomUUID()}-${nombreArchivo}`;
+}
+
 export async function obtenerDocumentoVigente(documentoLogicoId: string): Promise<Documento | null> {
   const { data, error } = await supabase
     .from("documento")
@@ -97,6 +106,98 @@ export async function subirNuevaVersionDocumento(input: SubirNuevaVersionDocumen
   });
   if (error) throw error;
   return data as Documento;
+}
+
+// ---------------------------------------------------------------------------
+// Subida con archivo real (Supabase Storage) — las dos funciones de arriba
+// (subirDocumento/subirNuevaVersionDocumento) solo registran metadatos;
+// estas dos envuelven ese registro con la subida real al bucket privado
+// "documentos". Si el insert en `documento` falla después de subir el
+// archivo, se borra el archivo huérfano del bucket antes de relanzar el
+// error — nunca dejar un archivo sin fila que lo referencie.
+// ---------------------------------------------------------------------------
+
+export interface SubirDocumentoConArchivoInput {
+  empresaId: string;
+  nombre: string;
+  archivo: File;
+  subidoPor?: string;
+  descripcion?: string;
+  categoria?: string;
+  metadatos?: Record<string, unknown>;
+}
+
+/** Sube el archivo al bucket "documentos" y crea la v1 del documento lógico. */
+export async function subirDocumentoConArchivo(input: SubirDocumentoConArchivoInput): Promise<Documento> {
+  const storagePath = generarStoragePath(input.empresaId, input.archivo.name);
+  const { error: errorSubida } = await supabase.storage.from(BUCKET).upload(storagePath, input.archivo, {
+    contentType: input.archivo.type || undefined,
+  });
+  if (errorSubida) throw errorSubida;
+
+  try {
+    return await subirDocumento({
+      empresaId: input.empresaId,
+      nombre: input.nombre,
+      storagePath,
+      subidoPor: input.subidoPor,
+      descripcion: input.descripcion,
+      categoria: input.categoria,
+      mimeType: input.archivo.type || undefined,
+      tamanoBytes: input.archivo.size,
+      metadatos: input.metadatos,
+    });
+  } catch (err) {
+    await supabase.storage.from(BUCKET).remove([storagePath]);
+    throw err;
+  }
+}
+
+export interface SubirNuevaVersionDocumentoConArchivoInput {
+  documentoLogicoId: string;
+  empresaId: string;
+  archivo: File;
+  /** Obligatorio: por qué se sube esta nueva versión. */
+  motivoNuevaVersion: string;
+  subidoPor?: string;
+  nombre?: string;
+  descripcion?: string;
+  categoria?: string;
+}
+
+/** Sube el archivo de la nueva versión y la registra atómicamente (cierra la vigente anterior). */
+export async function subirNuevaVersionDocumentoConArchivo(
+  input: SubirNuevaVersionDocumentoConArchivoInput
+): Promise<Documento> {
+  const storagePath = generarStoragePath(input.empresaId, input.archivo.name);
+  const { error: errorSubida } = await supabase.storage.from(BUCKET).upload(storagePath, input.archivo, {
+    contentType: input.archivo.type || undefined,
+  });
+  if (errorSubida) throw errorSubida;
+
+  try {
+    return await subirNuevaVersionDocumento({
+      documentoLogicoId: input.documentoLogicoId,
+      storagePath,
+      motivoNuevaVersion: input.motivoNuevaVersion,
+      subidoPor: input.subidoPor,
+      nombre: input.nombre,
+      descripcion: input.descripcion,
+      categoria: input.categoria,
+      mimeType: input.archivo.type || undefined,
+      tamanoBytes: input.archivo.size,
+    });
+  } catch (err) {
+    await supabase.storage.from(BUCKET).remove([storagePath]);
+    throw err;
+  }
+}
+
+/** URL firmada de corta duración — el bucket es privado, nunca hay una URL pública directa. */
+export async function obtenerUrlDescarga(storagePath: string, expiraEnSegundos = 300): Promise<string> {
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(storagePath, expiraEnSegundos);
+  if (error) throw error;
+  return data.signedUrl;
 }
 
 // ---------------------------------------------------------------------------

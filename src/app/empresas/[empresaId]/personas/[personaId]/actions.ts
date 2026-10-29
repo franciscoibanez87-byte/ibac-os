@@ -7,7 +7,7 @@ import { registrarEvidenciaAsistencia } from "@/cores/core-8-cumplimiento/querie
 import type { EvidenciaAsistenciaTipo } from "@/cores/core-8-cumplimiento/types";
 import { registrarEventoMovimiento } from "@/transversal/eventos/queries";
 import type { EventoMovimientoTipo } from "@/transversal/eventos/types";
-import { asociarDocumento, subirDocumento } from "@/transversal/documentos/queries";
+import { asociarDocumento, subirDocumentoConArchivo } from "@/transversal/documentos/queries";
 
 type ActionState = { error?: string } | undefined;
 
@@ -104,14 +104,16 @@ export async function subirDocumentoPersonaAction(_prev: ActionState, formData: 
   const empresaId = str(formData, "empresaId");
   const personaId = str(formData, "personaId");
   const nombre = str(formData, "nombre");
-  const storagePath = str(formData, "storagePath");
-  if (!nombre || !storagePath) return { error: "Nombre y ruta de almacenamiento son obligatorios." };
+  const archivo = formData.get("archivo");
+  if (!nombre || !(archivo instanceof File) || archivo.size === 0) {
+    return { error: "Nombre y archivo son obligatorios." };
+  }
 
   try {
-    const documento = await subirDocumento({
+    const documento = await subirDocumentoConArchivo({
       empresaId,
       nombre,
-      storagePath,
+      archivo,
       categoria: str(formData, "categoria") || undefined,
     });
     await asociarDocumento(documento.documento_logico_id, "persona", personaId);

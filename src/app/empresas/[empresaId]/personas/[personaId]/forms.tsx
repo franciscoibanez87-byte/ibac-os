@@ -142,7 +142,12 @@ export function SubirDocumentoPersonaForm({ empresaId, personaId }: { empresaId:
       <div className="grid gap-3 sm:grid-cols-3">
         <input name="nombre" placeholder="Nombre del documento *" required className={inputClass} />
         <input name="categoria" placeholder="Categoría" className={inputClass} />
-        <input name="storagePath" placeholder="Ruta de almacenamiento (storage_path) *" required className={inputClass} />
+        <input
+          type="file"
+          name="archivo"
+          required
+          className="rounded border border-zinc-300 bg-transparent px-3 py-2 text-sm file:mr-2 file:rounded-full file:border-0 file:bg-zinc-900 file:px-3 file:py-1 file:text-xs file:text-white dark:border-zinc-700 dark:file:bg-zinc-50 dark:file:text-zinc-900"
+        />
       </div>
       {state?.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
       <button type="submit" disabled={pending} className={buttonClass}>
