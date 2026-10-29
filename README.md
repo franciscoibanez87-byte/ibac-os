@@ -38,6 +38,16 @@ Ejemplos de fuente única de verdad ya resueltos en el diseño:
 - **Gestión Documental** (transversal) tampoco usa el Motor de Objeto Gobernado: un documento almacenado tiene versiones sucesivas con una "vigente" (patrón propio `documento_logico_id`/`version`/`vigente`), no un ciclo normativo borrador→aprobado→publicado. Resuelve las FKs lógicas pendientes de `cumplimiento_instancia.evidencia_documento_id` y `evidencia_asistencia.evidencia_documento_id`.
 - **EventoMovimiento** (transversal) es el hecho único detrás de alta, baja, reingreso, promoción, transferencia, cambio de plaza y cambio contractual. Resuelve la FK lógica pendiente de `asignacion.evento_movimiento_id` (CORE 1); CORE 3 y CORE 4 lo consumen por referencia.
 
+### Correcciones de una auditoría (2026-10-29)
+
+Antes de empezar las páginas de Next.js se auditó todo lo construido hasta ese punto. Hallazgos y su corrección:
+
+1. **CORE 1 no tenía código TypeScript.** Se agregó `src/cores/core-1-estructura/` completo (empresa, sede, unidad_organizacional, plaza, asignación) — era el único CORE sin capa de aplicación.
+2. **Hueco de integridad en salario/banda.** El refactor de 0008 había quitado la garantía "una persona/puesto no puede tener dos versiones vigentes a la vez" sin reemplazarla. La migración 0013 cierra esto con `pg_advisory_xact_lock` (serializa llamadas concurrentes por persona/puesto) + una aserción explícita en `registrar_contrato`/`registrar_banda_salarial` — validado con dos llamadas concurrentes reales.
+3. **`ObjetoGobernadoTipo` en TS seguía sin `banda_salarial`/`contrato`**, desincronizado del CHECK que 0008 ya había ampliado en la BD. Corregido.
+4. **`documento_asociacion`/`documento_permiso` apuntaban a una versión puntual**, no al documento lógico — una nueva versión dejaba huérfanas las asociaciones/permisos anteriores. La migración 0014 las mueve a `documento_logico_id` y agrega las vistas `documento_asociacion_vigente`/`documento_permiso_vigente` que resuelven siempre a la versión vigente.
+5. **Fuga de tipo en CORE 8**: una consulta usaba el embedding automático de PostgREST, devolviendo un campo no declarado en el tipo. Reescrita como dos consultas, consistente con el resto del proyecto.
+
 ## Stack técnico
 
 - **Frontend + Backend**: Next.js (App Router, TypeScript, Tailwind)

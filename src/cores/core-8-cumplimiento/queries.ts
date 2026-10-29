@@ -126,15 +126,32 @@ export async function listarInstanciasPorObligacion(obligacionId: string): Promi
   return data ?? [];
 }
 
+/**
+ * Dos consultas en vez de un embedding de PostgREST sobre la relación
+ * obligacion_cumplimiento->cumplimiento_instancia: así el resultado
+ * coincide exactamente con el tipo CumplimientoInstancia (sin un campo
+ * `obligacion_cumplimiento` colgado que el tipo no declara), consistente
+ * con el patrón usado en el resto del proyecto para resolver relaciones.
+ */
 export async function listarInstanciasPendientesOVencidas(empresaId: string): Promise<CumplimientoInstancia[]> {
+  const { data: obligaciones, error: errorObligaciones } = await supabase
+    .from("obligacion_cumplimiento")
+    .select("id")
+    .eq("empresa_id", empresaId);
+  if (errorObligaciones) throw errorObligaciones;
+  if (!obligaciones || obligaciones.length === 0) return [];
+
   const { data, error } = await supabase
     .from("cumplimiento_instancia")
-    .select("*, obligacion_cumplimiento!inner(empresa_id)")
-    .eq("obligacion_cumplimiento.empresa_id", empresaId)
+    .select("*")
+    .in(
+      "obligacion_id",
+      obligaciones.map((o) => o.id)
+    )
     .in("estatus", ["pendiente", "en_proceso", "vencido"])
     .order("fecha_limite");
   if (error) throw error;
-  return (data as CumplimientoInstancia[]) ?? [];
+  return data ?? [];
 }
 
 export interface RegistrarAccionInput {

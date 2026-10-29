@@ -36,22 +36,56 @@ export interface Documento {
   creado_en: string;
 }
 
-/** Vincula un documento a cualquier entidad del sistema (referencia lógica, no FK tipado). */
+/**
+ * Vincula un documento LÓGICO (sobrevive a nuevas versiones — ver fix de
+ * 0014) a cualquier entidad del sistema (referencia lógica, no FK tipado).
+ * `documento_logico_id` referencia documento.documento_logico_id, nunca
+ * una versión puntual.
+ */
 export interface DocumentoAsociacion {
   id: string;
-  documento_id: string;
+  documento_logico_id: string;
   entidad_tipo: string;
   entidad_id: string;
   creado_en: string;
 }
 
+/** Igual que DocumentoAsociacion: apunta al documento lógico, no a una versión. */
 export interface DocumentoPermiso {
   id: string;
-  documento_id: string;
+  documento_logico_id: string;
   puesto_id: string | null;
   persona_id: string | null;
   nivel_acceso: DocumentoNivelAcceso;
   creado_en: string;
+}
+
+/** Fila de la vista documento_asociacion_vigente — ya resuelta a la versión vigente. */
+export interface DocumentoAsociacionVigente {
+  id: string;
+  documento_logico_id: string;
+  entidad_tipo: string;
+  entidad_id: string;
+  creado_en: string;
+  documento_id: string;
+  version: number;
+  nombre: string;
+  categoria: string | null;
+  mime_type: string | null;
+  storage_path: string;
+}
+
+/** Fila de la vista documento_permiso_vigente — ya resuelta a la versión vigente. */
+export interface DocumentoPermisoVigente {
+  id: string;
+  documento_logico_id: string;
+  puesto_id: string | null;
+  persona_id: string | null;
+  nivel_acceso: DocumentoNivelAcceso;
+  creado_en: string;
+  documento_id: string;
+  version: number;
+  nombre: string;
 }
 
 export interface DocumentoEvento {

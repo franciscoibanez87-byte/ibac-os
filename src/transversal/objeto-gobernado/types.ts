@@ -1,13 +1,16 @@
 // Servicio transversal — Motor de Objeto Gobernado
-// Refleja 1:1 supabase/migrations/0005_transversal_objeto_gobernado.sql
+// Refleja 1:1 supabase/migrations/0005_transversal_objeto_gobernado.sql +
+// el refactor de 0008, que amplió el CHECK de tipo_objeto en la BD para
+// que banda_salarial y contrato también se apoyen en este motor.
 //
 // Ciclo de vida: borrador -> en_revision -> aprobado -> publicado -> archivado.
-// Reutilizado por CORE 5 (Políticas) y CORE 6 (Procedimientos). No crear
-// un mecanismo de versionado propio en un CORE nuevo sin primero revisar
-// si este motor ya resuelve el caso.
+// Reutilizado por CORE 2 (banda_salarial), CORE 4 (contrato), CORE 5
+// (Políticas) y CORE 6 (Procedimientos). No crear un mecanismo de
+// versionado propio en un CORE nuevo sin primero revisar si este motor ya
+// resuelve el caso.
 
 export type ObjetoGobernadoEstado = "borrador" | "en_revision" | "aprobado" | "publicado" | "archivado";
-export type ObjetoGobernadoTipo = "politica" | "procedimiento";
+export type ObjetoGobernadoTipo = "politica" | "procedimiento" | "banda_salarial" | "contrato";
 
 export interface ObjetoGobernado {
   id: string;

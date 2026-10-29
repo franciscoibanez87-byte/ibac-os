@@ -7,7 +7,15 @@
 // que cierra la versión vigente y crea la siguiente de forma atómica.
 
 import { supabase } from "@/lib/supabase";
-import type { Documento, DocumentoAsociacion, DocumentoEvento, DocumentoNivelAcceso, DocumentoPermiso } from "./types";
+import type {
+  Documento,
+  DocumentoAsociacion,
+  DocumentoAsociacionVigente,
+  DocumentoEvento,
+  DocumentoNivelAcceso,
+  DocumentoPermiso,
+  DocumentoPermisoVigente,
+} from "./types";
 
 export async function obtenerDocumentoVigente(documentoLogicoId: string): Promise<Documento | null> {
   const { data, error } = await supabase
@@ -92,22 +100,25 @@ export async function subirNuevaVersionDocumento(input: SubirNuevaVersionDocumen
 }
 
 // ---------------------------------------------------------------------------
-// Asociación
+// Asociación — siempre al documento LÓGICO (sobrevive a nuevas versiones,
+// ver fix de 0014). `documentoLogicoId` es el `documento_logico_id` de
+// cualquier versión (o, equivalentemente, el `id` de la versión 1).
 // ---------------------------------------------------------------------------
 
-export async function asociarDocumento(documentoId: string, entidadTipo: string, entidadId: string): Promise<DocumentoAsociacion> {
+export async function asociarDocumento(documentoLogicoId: string, entidadTipo: string, entidadId: string): Promise<DocumentoAsociacion> {
   const { data, error } = await supabase
     .from("documento_asociacion")
-    .insert({ documento_id: documentoId, entidad_tipo: entidadTipo, entidad_id: entidadId })
+    .insert({ documento_logico_id: documentoLogicoId, entidad_tipo: entidadTipo, entidad_id: entidadId })
     .select()
     .single();
   if (error) throw error;
   return data;
 }
 
-export async function obtenerDocumentosDeEntidad(entidadTipo: string, entidadId: string): Promise<DocumentoAsociacion[]> {
+/** Resuelto a la versión vigente de cada documento — nunca a una versión superada. */
+export async function obtenerDocumentosDeEntidad(entidadTipo: string, entidadId: string): Promise<DocumentoAsociacionVigente[]> {
   const { data, error } = await supabase
-    .from("documento_asociacion")
+    .from("documento_asociacion_vigente")
     .select("*")
     .eq("entidad_tipo", entidadTipo)
     .eq("entidad_id", entidadId);
@@ -116,11 +127,11 @@ export async function obtenerDocumentosDeEntidad(entidadTipo: string, entidadId:
 }
 
 // ---------------------------------------------------------------------------
-// Permisos
+// Permisos — igual que la asociación, siempre al documento LÓGICO.
 // ---------------------------------------------------------------------------
 
 export interface OtorgarPermisoInput {
-  documentoId: string;
+  documentoLogicoId: string;
   nivelAcceso?: DocumentoNivelAcceso;
   /** Exactamente uno de los dos: puestoId o personaId. */
   puestoId?: string;
@@ -131,7 +142,7 @@ export async function otorgarPermiso(input: OtorgarPermisoInput): Promise<Docume
   const { data, error } = await supabase
     .from("documento_permiso")
     .insert({
-      documento_id: input.documentoId,
+      documento_logico_id: input.documentoLogicoId,
       puesto_id: input.puestoId ?? null,
       persona_id: input.personaId ?? null,
       nivel_acceso: input.nivelAcceso ?? "lectura",
@@ -142,8 +153,12 @@ export async function otorgarPermiso(input: OtorgarPermisoInput): Promise<Docume
   return data;
 }
 
-export async function obtenerPermisosDeDocumento(documentoId: string): Promise<DocumentoPermiso[]> {
-  const { data, error } = await supabase.from("documento_permiso").select("*").eq("documento_id", documentoId);
+/** Resuelto a la versión vigente del documento — nunca a una versión superada. */
+export async function obtenerPermisosDeDocumento(documentoLogicoId: string): Promise<DocumentoPermisoVigente[]> {
+  const { data, error } = await supabase
+    .from("documento_permiso_vigente")
+    .select("*")
+    .eq("documento_logico_id", documentoLogicoId);
   if (error) throw error;
   return data ?? [];
 }
