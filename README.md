@@ -103,6 +103,19 @@ El linter de seguridad de Supabase (solo disponible contra una plataforma real, 
 - **`0016_hardening_rpcs_vistas_solo_service_role.sql`**: revoca `EXECUTE` de esas 8 RPCs a `public`/`anon`/`authenticated` y lo otorga solo a `service_role`; pone `security_invoker = true` en las 4 vistas para que respeten el RLS de quien consulta en vez de correr con los privilegios de quien las creó. El `REVOKE` de `anon` es condicional (`if exists (select 1 from pg_roles where rolname = 'anon')`) porque ese rol solo existe en una plataforma Supabase real — el harness de pruebas local (Postgres plano) no lo tiene, solo `authenticated` y `service_role`.
 - Verificado: `bash supabase/tests/run.sh` sigue pasando completo (incluida la prueba de concurrencia) con la migración 0016 incluida, y el linter de seguridad del proyecto real queda en cero hallazgos. La app nunca se vio afectada porque siempre usa `service_role` (`src/lib/supabase-admin.ts`), nunca `anon`/`authenticated`.
 
+### Autenticación de staff/RH (2026-10-29)
+
+Hasta ahora la app no tenía login: cualquiera con la URL veía todo. Se agregó Supabase Auth con email + contraseña, con un alcance deliberadamente acotado — es la puerta de entrada, no la matriz de permisos (eso sigue pendiente, ver "Reglas de oro"/auditoría):
+
+- **Quién entra**: solo staff de RH/consultores (tú y el equipo de RH de cada cliente). No hay autoservicio de empleados todavía, y no hay signup público — las cuentas se crean a mano desde el dashboard de Supabase (ver "Desarrollo" abajo).
+- **`src/proxy.ts`** (en Next.js 16, `middleware.ts` se renombró a `proxy.ts` — mismo mecanismo): protege toda la app. Sin sesión, redirige a `/login`; con sesión, `/login` redirige a `/empresas`. Hace el redirect en el borde, antes de que cualquier página corra.
+- **`src/lib/supabase-server.ts`** / **`src/lib/supabase-browser.ts`**: clientes de Supabase *con sesión* (cookies, anon key) — distintos de `supabase-admin.ts` (service_role, sin sesión). Estos nuevos clientes se usan solo para login/logout/mostrar el usuario; ninguna query de datos de negocio (CORE 1-8) pasó a usarlos — siguen yendo 100% por `service_role`, igual que antes.
+- **`/login`**: formulario de correo + contraseña (Server Action `loginAction`), mensaje de error genérico ("correo o contraseña incorrectos") para no filtrar qué correos tienen cuenta.
+- **Logout**: botón en el header del layout raíz, junto al correo del usuario autenticado.
+- Alcance explícitamente NO cubierto por esta pasada (decisión del usuario): cualquier usuario autenticado sigue viendo exactamente lo mismo que veía antes — el RLS de las tablas sigue siendo el placeholder permisivo de siempre. Diseñar qué puede ver/hacer cada rol (RH, Nómina, Jefatura...) es un paso aparte, ya identificado en la auditoría de arquitectura.
+
+Validado: `tsc --noEmit`, `eslint` y `next build` limpios (el aviso de deprecación de `middleware.ts` → `proxy.ts` de Next.js 16 ya quedó resuelto renombrando el archivo), y smoke test con `next dev` confirmando que `/login` carga sin sesión y que una ruta protegida (`/empresas`) redirige a `/login` con 307.
+
 ## Stack técnico
 
 - **Frontend + Backend**: Next.js (App Router, TypeScript, Tailwind)
@@ -139,9 +152,19 @@ cp .env.example .env.local   # completa con la instancia Supabase de este client
 npm run dev
 ```
 
-Abre [http://localhost:3000](http://localhost:3000) — redirige a `/empresas`.
+Abre [http://localhost:3000](http://localhost:3000) — sin sesión, redirige a `/login`.
 
 `SUPABASE_SERVICE_ROLE_KEY` (en `.env.local`, nunca con prefijo `NEXT_PUBLIC_`) es obligatoria: toda la app lee y escribe con ese cliente desde el servidor (ver "Primeras páginas de Next.js" arriba).
+
+### Crear el primer usuario de staff
+
+No hay signup público (ver "Autenticación de staff/RH" arriba). Para poder entrar:
+
+1. En el dashboard de Supabase del proyecto → **Authentication → Users → Add user**.
+2. Captura el correo y una contraseña, y marca **Auto Confirm User** (si no, el usuario queda sin confirmar y no puede iniciar sesión hasta click en un correo de confirmación que esta app todavía no envía).
+3. Entra con ese correo/contraseña en `/login`.
+
+Recomendado además, en **Authentication → Providers → Email**: desactivar "Allow new users to sign up" — como no hay página de registro en la app, ese endpoint solo queda expuesto por si alguien lo llama directamente con la anon key.
 
 ## Pruebas de base de datos
 
