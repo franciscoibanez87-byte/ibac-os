@@ -94,6 +94,15 @@ El formulario de documentos de persona pedía la `storage_path` a mano porque nu
 
 Validado igual que las pasadas anteriores: `tsc --noEmit`, `eslint` y `next build` limpios, y smoke test con `next dev` sin errores de código en ninguna ruta.
 
+### Primer proyecto Supabase real + hardening de permisos (2026-10-29)
+
+Se creó el primer proyecto Supabase real del repo (`ibac-os-dev`, org IBAC — proyecto de desarrollo/demo, no la instancia de ningún cliente) y se corrieron las 15 migraciones existentes contra él por primera vez, sin errores.
+
+El linter de seguridad de Supabase (solo disponible contra una plataforma real, no contra el harness de pruebas local) encontró un hallazgo real: las 8 RPCs de escritura (`registrar_contrato`, `subir_documento`, `publicar_objeto_gobernado`, etc.) y 4 vistas derivadas (`historial_salarial` entre ellas) eran ejecutables/legibles por los roles `anon`/`authenticated` vía PostgREST — Postgres otorga `EXECUTE` a `PUBLIC` por defecto, y nunca se había aplicado el `REVOKE` explícito porque hasta ahora no existía un proyecto real contra el cual verificarlo. Esto ya estaba señalado como decisión pendiente en el diseño ("escritura reservada a service_role hasta definir matriz de permisos por rol"), pero quedaba expuesto en la práctica.
+
+- **`0016_hardening_rpcs_vistas_solo_service_role.sql`**: revoca `EXECUTE` de esas 8 RPCs a `public`/`anon`/`authenticated` y lo otorga solo a `service_role`; pone `security_invoker = true` en las 4 vistas para que respeten el RLS de quien consulta en vez de correr con los privilegios de quien las creó. El `REVOKE` de `anon` es condicional (`if exists (select 1 from pg_roles where rolname = 'anon')`) porque ese rol solo existe en una plataforma Supabase real — el harness de pruebas local (Postgres plano) no lo tiene, solo `authenticated` y `service_role`.
+- Verificado: `bash supabase/tests/run.sh` sigue pasando completo (incluida la prueba de concurrencia) con la migración 0016 incluida, y el linter de seguridad del proyecto real queda en cero hallazgos. La app nunca se vio afectada porque siempre usa `service_role` (`src/lib/supabase-admin.ts`), nunca `anon`/`authenticated`.
+
 ## Stack técnico
 
 - **Frontend + Backend**: Next.js (App Router, TypeScript, Tailwind)
